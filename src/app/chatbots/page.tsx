@@ -86,7 +86,7 @@ export default function ChatbotsPage() {
 
   // Function to get embed code
   const handleGetEmbedCode = (id: string) => {
-    const embedCode = `<script id="${id}" src="${process.env.NEXT_PUBLIC_BACKEND_URL}/script.js""></script>`;
+    const embedCode = `<script id="${id}" src="${process.env.NEXT_PUBLIC_BACKEND_URL}/script.js"></script>`;
     navigator.clipboard.writeText(embedCode).then(() => {
       alert("Embed code copied to clipboard!");
     }).catch((err) => {
