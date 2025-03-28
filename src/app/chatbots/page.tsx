@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bot, Code, Edit, MoreHorizontal, PlusCircle, Trash, MessageSquare, Activity } from "lucide-react"
+import { Bot, Code, Edit, MoreHorizontal, PlusCircle, Trash, MessageSquare, Activity, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -18,6 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { RedirectToSignIn, useUser } from "@clerk/nextjs"
+import { supabase } from "@/lib/supabaseClient";
 
 // Type definition for a chatbot
 type Chatbot = {
@@ -29,43 +31,33 @@ type Chatbot = {
   interactions?: number
 }
 
+
 export default function ChatbotsPage() {
   const router = useRouter()
+  const { user,isLoaded } = useUser();
   const [chatbots, setChatbots] = useState<Chatbot[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [chatbotToDelete, setChatbotToDelete] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true);
+
 
   // Load chatbots from localStorage on component mount
   useEffect(() => {
-    const storedChatbots = localStorage.getItem("chatbots")
-    if (storedChatbots) {
-      setChatbots(JSON.parse(storedChatbots))
-    } else {
-      // Default chatbots if none exist
-      const defaultChatbots: Chatbot[] = [
-        {
-          id: "1",
-          name: "Customer Support Bot",
-          createdAt: new Date().toISOString().split("T")[0],
-          prompt:
-            "You are a helpful customer support assistant that answers questions about our products and services.",
-          color: "blue",
-          interactions: 1243,
-        },
-        {
-          id: "2",
-          name: "Product Recommendation Bot",
-          createdAt: new Date().toISOString().split("T")[0],
-          prompt:
-            "You are a product recommendation assistant that helps users find the perfect product based on their needs and preferences.",
-          color: "green",
-          interactions: 856,
-        },
-      ]
-      setChatbots(defaultChatbots)
-      localStorage.setItem("chatbots", JSON.stringify(defaultChatbots))
-    }
-  }, [])
+    const fetchChatbots = async () => {
+      if (!user) return;
+      setLoading(true);
+      const { data, error } = await supabase.from("chatbots").select("*").eq("user_id", user.id);
+      if (error) {
+        console.error("Error fetching chatbots:", error);
+      } else {
+        setChatbots(data || []);
+      }
+      setLoading(false);
+    };
+    if (user) fetchChatbots();
+  }, [user]);
+
+  
 
   // Function to handle chatbot deletion
   const handleDeleteChatbot = (id: string) => {
@@ -74,13 +66,16 @@ export default function ChatbotsPage() {
   }
 
   // Function to confirm chatbot deletion
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (chatbotToDelete) {
-      const updatedChatbots = chatbots.filter((bot) => bot.id !== chatbotToDelete)
-      setChatbots(updatedChatbots)
-      localStorage.setItem("chatbots", JSON.stringify(updatedChatbots))
-      setDeleteDialogOpen(false)
-      setChatbotToDelete(null)
+      const { error } = await supabase.from("chatbots").delete().eq("id", chatbotToDelete);
+      if (error) {
+        console.error("Error deleting chatbot:", error);
+      } else {
+        setChatbots(chatbots.filter((bot) => bot.id !== chatbotToDelete));
+      }
+      setDeleteDialogOpen(false);
+      setChatbotToDelete(null);
     }
   }
 
@@ -90,25 +85,13 @@ export default function ChatbotsPage() {
   }
 
   // Function to get embed code
-  const handleGetEmbedCode = (chatbot: Chatbot) => {
-    const embedCode = `<script>
-  window.chatbotConfig = {
-    name: "${chatbot.name}",
-    systemPrompt: "${chatbot.prompt.replace(/"/g, '\\"')}"
-  };
-</script>
-<script src="https://chatbot-creator.example.com/embed.js" async></script>
-<div id="chatbot-container"></div>`
-
-    // Copy to clipboard
-    navigator.clipboard
-      .writeText(embedCode)
-      .then(() => {
-        alert("Embed code copied to clipboard!")
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err)
-      })
+  const handleGetEmbedCode = (id: string) => {
+    const embedCode = `<script id="${id}" src="${process.env.BACKEND_URL}/script.js""></script>`;
+    navigator.clipboard.writeText(embedCode).then(() => {
+      alert("Embed code copied to clipboard!");
+    }).catch((err) => {
+      console.error("Failed to copy:", err);
+    });
   }
 
   // Get a contrasting text color based on background
@@ -142,6 +125,28 @@ export default function ChatbotsPage() {
     }
   }
 
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-10 w-10 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <RedirectToSignIn redirectUrl={"/chatbots"} />;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-10 w-10 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
@@ -174,7 +179,7 @@ export default function ChatbotsPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {chatbots.map((chatbot) => (
-            <Card key={chatbot.id} className="overflow-hidden transition-all duration-200 hover:shadow-md group">
+            <Card key={chatbot.id} className="overflow-hidden transition-all duration-200 -py-6 hover:shadow-md group">
               <div className={`h-2 w-full ${getBgColorClass(chatbot.color)}`} />
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <div className="space-y-1">
@@ -202,7 +207,7 @@ export default function ChatbotsPage() {
                       <Edit className="mr-2 h-4 w-4" />
                       <span>Edit</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleGetEmbedCode(chatbot)}>
+                    <DropdownMenuItem onClick={() => handleGetEmbedCode(chatbot.id)}>
                       <Code className="mr-2 h-4 w-4" />
                       <span>Get Embed Code</span>
                     </DropdownMenuItem>

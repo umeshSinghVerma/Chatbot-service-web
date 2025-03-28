@@ -1,88 +1,91 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Check, Code } from "lucide-react"
-import Link from "next/link"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
-import { ToastAction } from "@/components/ui/toast"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { supabase } from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Check, Code } from "lucide-react";
+import Link from "next/link";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+
+// Loading Spinner Component
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center py-8">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-600 border-t-transparent" />
+    </div>
+  );
+}
 
 export default function CreateChatbot() {
-  const router = useRouter()
-  const [step, setStep] = useState<"details" | "script">("details")
-  const [botName, setBotName] = useState("")
-  const [systemPrompt, setSystemPrompt] = useState("")
-  const [botColor, setBotColor] = useState("blue")
+  const { isLoaded, user } = useUser();
+  const router = useRouter();
+  const [step, setStep] = useState<"details" | "script">("details");
+  const [botName, setBotName] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [botColor, setBotColor] = useState("blue");
+  const [embedScript, setEmbedScript] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleGenerateScript = () => {
-    if (!botName || !systemPrompt) return
-    setStep("script")
-  }
+  const handleSaveChatbot = async () => {
+    if (!botName || !systemPrompt || !user) return;
+    setIsLoading(true);
 
-  const handleSaveChatbot = () => {
-    if (!botName || !systemPrompt) return
+    // Insert chatbot into Supabase
+    const { data, error } = await supabase
+      .from("chatbots")
+      .insert([
+        {
+          user_id: user.id, // Clerk user ID
+          name: botName,
+          prompt: systemPrompt,
+          color: botColor,
+        },
+      ])
+      .select("id") // Get the chatbot ID
+      .single();
 
-    // Generate a unique ID
-    const newId = Date.now().toString()
+    setIsLoading(false);
 
-    // Create new chatbot object
-    const newChatbot = {
-      id: newId,
-      name: botName,
-      createdAt: new Date().toISOString().split("T")[0],
-      prompt: systemPrompt,
-      color: botColor,
-      interactions: 0,
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
     }
 
-    // Get existing chatbots from localStorage
-    const existingChatbotsJSON = localStorage.getItem("chatbots")
-    const existingChatbots = existingChatbotsJSON ? JSON.parse(existingChatbotsJSON) : []
+    const uniqueScript = `<script id="${data.id}" src="${process.env.BACKEND_URL}/script.js"></script>`;
+    setEmbedScript(uniqueScript);
 
-    // Add new chatbot to the list
-    const updatedChatbots = [...existingChatbots, newChatbot]
+    // Switch to script view
+    setStep("script");
 
-    // Save to localStorage
-    localStorage.setItem("chatbots", JSON.stringify(updatedChatbots))
-
-    // Show success toast
     toast({
       title: "Chatbot created successfully!",
-      description: `${botName} has been added to your chatbots.`,
-      action: (
-        <ToastAction altText="View Chatbots">
-          <Link href="/chatbots">View Chatbots</Link>
-        </ToastAction>
-      ),
-    })
+      description: `${botName} has been added.`,
+    });
+  };
 
-    // Redirect to chatbots page
-    router.push("/chatbots")
+  if (!isLoaded) {
+    return <LoadingSpinner />;
   }
 
-  const embedScript = `<script>
-  window.chatbotConfig = {
-    name: "${botName}",
-    systemPrompt: "${systemPrompt.replace(/"/g, '\\"')}"
-  };
-</script>
-<script src="https://chatbot-creator.example.com/embed.js" async></script>
-<div id="chatbot-container"></div>`
+  if (!user) {
+    return <RedirectToSignIn redirectUrl={"/create"} />;
+  }
+
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
-        <Link
-          href="/chatbots"
-          className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
+        <Link href="/chatbots" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to My Chatbots
         </Link>
@@ -99,6 +102,7 @@ export default function CreateChatbot() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Chatbot Details Form */}
           <TabsContent value="details">
             <Card className="shadow-sm">
               <CardHeader>
@@ -108,12 +112,7 @@ export default function CreateChatbot() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Chatbot Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="My Awesome Chatbot"
-                    value={botName}
-                    onChange={(e) => setBotName(e.target.value)}
-                  />
+                  <Input id="name" placeholder="My Awesome Chatbot" value={botName} onChange={(e) => setBotName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="color">Chatbot Color</Label>
@@ -122,36 +121,14 @@ export default function CreateChatbot() {
                       <SelectValue placeholder="Select a color" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="blue">
-                        <div className="flex items-center">
-                          <div className="h-4 w-4 rounded-full bg-blue-600 mr-2"></div>
-                          <span>Blue</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="green">
-                        <div className="flex items-center">
-                          <div className="h-4 w-4 rounded-full bg-green-600 mr-2"></div>
-                          <span>Green</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="purple">
-                        <div className="flex items-center">
-                          <div className="h-4 w-4 rounded-full bg-purple-600 mr-2"></div>
-                          <span>Purple</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="indigo">
-                        <div className="flex items-center">
-                          <div className="h-4 w-4 rounded-full bg-indigo-600 mr-2"></div>
-                          <span>Indigo</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="amber">
-                        <div className="flex items-center">
-                          <div className="h-4 w-4 rounded-full bg-amber-500 mr-2"></div>
-                          <span>Amber</span>
-                        </div>
-                      </SelectItem>
+                      {["blue", "green", "purple", "indigo", "amber"].map((color) => (
+                        <SelectItem key={color} value={color}>
+                          <div className="flex items-center">
+                            <div className={`h-4 w-4 rounded-full bg-${color}-600 mr-2`} />
+                            <span>{color.charAt(0).toUpperCase() + color.slice(1)}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -159,37 +136,23 @@ export default function CreateChatbot() {
                   <Label htmlFor="system-prompt">System Prompt</Label>
                   <Textarea
                     id="system-prompt"
-                    placeholder="You are a helpful assistant that answers questions about our products..."
+                    placeholder="You are a helpful assistant..."
                     className="min-h-32"
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    The system prompt controls how your chatbot behaves and responds to user queries.
-                  </p>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={() => router.push("/chatbots")}>
-                  Cancel
+              <CardFooter className="flex justify-end">
+                <Button onClick={handleSaveChatbot} disabled={!botName || !systemPrompt} className="bg-green-600 hover:bg-green-700">
+                  <Check className="mr-2 h-4 w-4" />
+                  Save Chatbot
                 </Button>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleSaveChatbot}
-                    disabled={!botName || !systemPrompt}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Check className="mr-2 h-4 w-4" />
-                    Save Chatbot
-                  </Button>
-                  <Button onClick={handleGenerateScript} disabled={!botName || !systemPrompt}>
-                    Generate Script
-                  </Button>
-                </div>
               </CardFooter>
             </Card>
           </TabsContent>
 
+          {/* Embed Script Section */}
           <TabsContent value="script">
             <Card className="shadow-sm">
               <CardHeader>
@@ -206,11 +169,11 @@ export default function CreateChatbot() {
                     size="sm"
                     className="absolute right-4 top-4"
                     onClick={() => {
-                      navigator.clipboard.writeText(embedScript)
+                      navigator.clipboard.writeText(embedScript);
                       toast({
                         title: "Copied to clipboard",
-                        description: "The embed script has been copied to your clipboard.",
-                      })
+                        description: "The embed script has been copied.",
+                      });
                     }}
                   >
                     <Code className="mr-2 h-4 w-4" />
@@ -218,13 +181,9 @@ export default function CreateChatbot() {
                   </Button>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep("details")}>
-                  Back to Details
-                </Button>
-                <Button onClick={handleSaveChatbot} className="bg-green-600 hover:bg-green-700">
-                  <Check className="mr-2 h-4 w-4" />
-                  Save & Finish
+              <CardFooter className="flex justify-end">
+                <Button variant="outline" onClick={() => router.push("/chatbots")}>
+                  Done
                 </Button>
               </CardFooter>
             </Card>
@@ -232,6 +191,5 @@ export default function CreateChatbot() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
-
