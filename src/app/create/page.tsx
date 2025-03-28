@@ -59,7 +59,7 @@ export default function CreateChatbot() {
       return;
     }
 
-    const uniqueScript = `<script id="${data.id}" src="${process.env.BACKEND_URL}/script.js"></script>`;
+    const uniqueScript = `<script id="${data.id}" src="${process.env.NEXT_PUBLIC_BACKEND_URL}/script.js"></script>`;
     setEmbedScript(uniqueScript);
 
     // Switch to script view
