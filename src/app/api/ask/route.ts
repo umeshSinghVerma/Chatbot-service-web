@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  GoogleGenerativeAI,
-  GenerativeModel,
-  ChatSession,
-  HarmCategory,
-  HarmBlockThreshold
+  GoogleGenerativeAI
 } from "@google/generative-ai";
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -92,7 +88,7 @@ async function askGemini(
 
 
     const chat = model.startChat({
-      history: history as any, 
+      history: history, 
       generationConfig: {
         // Add any generation configuration here, such as temperature, topP, etc.
       },
@@ -102,8 +98,8 @@ async function askGemini(
     const responseText = result.response.text();
     console.log("response text",responseText);
     return responseText;
-  } catch (error: any) {
-    console.error(`An error occurred: ${error.message}`);
+  } catch (error) {
+    console.error(`An error occurred: ${error}`);
     return null;
   }
 }

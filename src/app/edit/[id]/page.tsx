@@ -148,7 +148,7 @@ export default function EditChatbot() {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>Chatbot Details</CardTitle>
-            <CardDescription>Update your chatbot's name and behavior</CardDescription>
+            <CardDescription>Update your chatbot&apos;s name and behavior</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">

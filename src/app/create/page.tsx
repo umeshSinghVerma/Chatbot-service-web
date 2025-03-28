@@ -14,7 +14,6 @@ import { ArrowLeft, Check, Code } from "lucide-react";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 
 // Loading Spinner Component
 function LoadingSpinner() {
@@ -107,7 +106,7 @@ export default function CreateChatbot() {
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>Chatbot Details</CardTitle>
-                <CardDescription>Configure your chatbot's name and behavior</CardDescription>
+                <CardDescription>Configure your chatbot&apos;s name and behavior</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">

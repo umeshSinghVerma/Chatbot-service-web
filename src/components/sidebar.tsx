@@ -2,11 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bot, LayoutDashboard, Settings, Users, Moon, Sun } from "lucide-react"
+import { Bot, LayoutDashboard, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
-import { SignedIn, SignedOut, SignInButton, SignOutButton, UserButton, useUser } from "@clerk/nextjs"
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/nextjs"
 
 const navItems = [
     {
