@@ -32,6 +32,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
     }
 
+    console.log(chatbot);
+
     const systemPrompt = chatbot.prompt;
 
     const response = await askGemini(systemPrompt, prompt, previousMessages);
