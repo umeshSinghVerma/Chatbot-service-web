@@ -1,11 +1,5 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  GoogleGenerativeAI
-} from "@google/generative-ai";
-
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey!);
 
 export async function GET(request: Request) {
   try {
